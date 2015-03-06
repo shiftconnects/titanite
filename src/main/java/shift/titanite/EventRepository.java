@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.tomcat.jdbc.pool.DataSource;
 import org.postgresql.util.PGobject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.sql.PreparedStatement;
@@ -12,13 +14,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 /**
- * Created by jeff on 3/5/15.
+ * Repository to store object with json data into postgres
  */
 public class EventRepository {
 
   @Autowired DataSource dataSource;
   @Autowired ObjectMapper objectMapper;
   private String tableName;
+
+  private static final Logger LOG = LoggerFactory.getLogger(EventRepository.class);
 
   public EventRepository(String tableName){
     this.tableName = tableName;
@@ -35,9 +39,9 @@ public class EventRepository {
   public boolean saveEvent(Event event) throws SQLException, JsonProcessingException{
     boolean success = false;
 
+    //Set up a specific PGobject which allows setting of the type as well as data
     PGobject data = new PGobject();
     data.setType("json");
-
     data.setValue(objectMapper.writeValueAsString(event.getData()));
 
     String sql = "INSERT INTO " + tableName

@@ -8,23 +8,17 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitMessagingTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
-import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 
-import java.time.Instant;
-import java.util.HashMap;
-
 import shift.titanite.ErrorPublisher;
-import shift.titanite.Event;
 import shift.titanite.EventReceiver;
 
 import static com.fasterxml.jackson.databind.PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES;
@@ -94,23 +88,8 @@ public class AppConfig{
   }
 
   @Bean
-  ErrorPublisher errorPublisher(RabbitTemplate rabbitTemplate){
-    return new ErrorPublisher(rabbitTemplate, errorEventExchangeName, errorEventRoute);
-  }
-
-  @Bean
-  String blah(RabbitTemplate rabbitTemplate, JdbcTemplate jdbcTemplate) {
-    Event foo = new Event();
-    foo.setData(new HashMap<String, String>());
-    foo.getData().put("test", "hello");
-    foo.setTuid("123-123-123-123-jifodsaf");
-    foo.setSource("phone app");
-    foo.setOccurred(Instant.now());
-    foo.setType("shift.event");
-
-    rabbitTemplate.convertAndSend(eventExchangeName, eventRoute, foo);
-
-    return "HELLO";
+  ErrorPublisher errorPublisher(RabbitMessagingTemplate rabbitMessagingTemplate){
+    return new ErrorPublisher(rabbitMessagingTemplate, errorEventExchangeName, errorEventRoute);
   }
 
   @Bean
@@ -123,15 +102,25 @@ public class AppConfig{
     return messagingTemplate;
   }
 
-  @Bean
-  SimpleMessageListenerContainer container(ConnectionFactory connectionFactory){
-    SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
-    MessageListenerAdapter adapter = new MessageListenerAdapter(eventReceiver(), "receiveMessage");
-    adapter.setMessageConverter(jsonMessageConverter());
-    container.setMessageListener(adapter);
-    container.setPrefetchCount(100);
-    container.setQueues(queue());
+//  @Bean
+//  SimpleMessageListenerContainer container(ConnectionFactory connectionFactory){
+//    SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
+//    MessageListenerAdapter adapter = new MessageListenerAdapter(eventReceiver(), "receiveMessage");
+//    adapter.setMessageConverter(jsonMessageConverter());
+//    container.setMessageListener(adapter);
+//    container.setPrefetchCount(100);
+//    container.setQueues(queue());
+//
+//    return container;
+//  }
 
-    return container;
+  @Bean
+  public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(ConnectionFactory connectionFactory) {
+    SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+    factory.setConnectionFactory(connectionFactory);
+    factory.setMessageConverter(jsonMessageConverter());
+    factory.setMaxConcurrentConsumers(5);
+    factory.setPrefetchCount(100);
+    return factory;
   }
 }

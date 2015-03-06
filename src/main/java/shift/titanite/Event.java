@@ -59,4 +59,14 @@ public class Event {
         && data != null && !data.isEmpty();
   }
 
+  @Override
+  public String toString() {
+    return "Event{" +
+           "data=" + data +
+           ", source='" + source + '\'' +
+           ", occurred=" + occurred +
+           ", tuid='" + tuid + '\'' +
+           ", type='" + type + '\'' +
+           '}';
+  }
 }
