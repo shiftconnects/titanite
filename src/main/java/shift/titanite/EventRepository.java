@@ -3,29 +3,34 @@ package shift.titanite;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.apache.tomcat.jdbc.pool.DataSource;
 import org.postgresql.util.PGobject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Repository to store object with json data into postgres
  */
 public class EventRepository {
 
-  @Autowired DataSource dataSource;
+  @Autowired private NamedParameterJdbcTemplate template;
   @Autowired ObjectMapper objectMapper;
   private String tableName;
+  private String insertQuery;
 
   private static final Logger LOG = LoggerFactory.getLogger(EventRepository.class);
 
   public EventRepository(String tableName){
     this.tableName = tableName;
+    this.insertQuery = "INSERT INTO " + tableName
+    + " (data, source, occurred, type, tuid) VALUES(:data, :source, :occurred, :type, :tuid)";
+
   }
 
   /**
@@ -44,21 +49,18 @@ public class EventRepository {
     data.setType("json");
     data.setValue(objectMapper.writeValueAsString(event.getData()));
 
-    String sql = "INSERT INTO " + tableName
-                 + " (data, source, occurred, type, tuid) VALUES(?, ?, ?, ?, ?)";
+    Map<String, Object> params = new HashMap<String, Object>();
+    params.put("data", data);
+    params.put("source", event.getSource());
+    params.put("occurred", new Timestamp(event.getOccurred().toEpochMilli()));
+    params.put("type", event.getType());
+    params.put("tuid", event.getTuid());
 
-    PreparedStatement statement = dataSource.getConnection().prepareStatement(sql);
-    statement.setObject(1, data);
-    statement.setString(2, event.getSource());
-    statement.setTimestamp(3, new Timestamp(event.getOccurred().toEpochMilli()));
-    statement.setString(4, event.getType());
-    statement.setString(5, event.getTuid());
-    int result = statement.executeUpdate();
+    int result = template.update(insertQuery, params);
     if(result > 0){
       success = true;
     }
 
-    statement.close();
     return success;
   }
 
